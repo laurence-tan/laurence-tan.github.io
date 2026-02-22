@@ -1,1 +1,745 @@
-<h1>Hello World</h1>
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>~/blog - Vim Dashboard</title>
+    <style>
+        :root {
+            /* GitHub Dark Theme Palette */
+            --bg-body: #0d1117;
+            --bg-panel: #161b22;
+            --bg-panel-hover: #21262d;
+            --border: #30363d;
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+            --highlight: #58a6ff;
+            --highlight-shadow: rgba(88, 166, 255, 0.4);
+            --danger: #f85149;
+            --success: #238636;
+            --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Scrollbar styles to match the theme */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-body);
+            border-left: 1px solid var(--border);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--bg-panel-hover);
+            border: 3px solid var(--bg-body);
+            border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: var(--highlight);
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Bar */
+        header {
+            background-color: var(--bg-panel);
+            border-bottom: 2px solid var(--border);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            /* 3D Drop Shadow */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+
+        .logo {
+            font-weight: bold;
+            color: var(--highlight);
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background-color: var(--highlight);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--highlight);
+        }
+
+        .vim-mode {
+            background: var(--highlight);
+            color: var(--bg-body);
+            padding: 4px 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            box-shadow: 2px 2px 0px #000;
+            transition: all 0.2s;
+        }
+
+        .vim-mode.insert {
+            background: var(--success);
+            color: white;
+            box-shadow: 2px 2px 0px #000;
+        }
+
+        .vim-mode.normal {
+            background: var(--highlight);
+            color: #000;
+        }
+
+        /* Main Container */
+        .container {
+            display: flex;
+            flex: 1;
+            padding: 20px;
+            gap: 25px;
+            overflow: hidden;
+        }
+
+        /* 3D Panels UI */
+        .panel {
+            background-color: var(--bg-panel);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            /* Neo-brutalism / Terminal strong shadows */
+            box-shadow: 6px 6px 0px #000000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Sidebar: Post List */
+        .sidebar {
+            width: 320px;
+            min-width: 320px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-panel);
+            z-index: 2;
+        }
+
+        /* 3D Buttons */
+        .btn {
+            background-color: var(--bg-panel-hover);
+            color: var(--text-main);
+            border: 2px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.1s;
+            box-shadow: 3px 3px 0px #000;
+        }
+
+        .btn:active {
+            transform: translate(3px, 3px);
+            box-shadow: 0px 0px 0px #000;
+        }
+
+        .btn-primary {
+            background-color: var(--success);
+            color: white;
+            border-color: #2ea043;
+        }
+
+        .btn-danger {
+            background-color: transparent;
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .post-list-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .post-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* Post Items - 3D highlighting on select */
+        .post-item {
+            padding: 15px;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            background-color: var(--bg-panel);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+        }
+
+        .post-item:hover:not(.active) {
+            background-color: var(--bg-panel-hover);
+            transform: translateY(-2px);
+            box-shadow: 3px 3px 0px #000;
+        }
+
+        /* Selected Post Highlights (UI 立体, 选中突出) */
+        .post-item.active {
+            border-color: var(--highlight);
+            /* Strong 3D pop out */
+            transform: translate(-4px, -4px);
+            box-shadow: 6px 6px 0px var(--highlight-shadow), inset 2px 0 0 var(--highlight);
+            background-color: #1a2333;
+            z-index: 1;
+        }
+
+        .post-item.active::after {
+            content: '●';
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            color: var(--highlight);
+            font-size: 12px;
+            box-shadow: 0 0 10px var(--highlight);
+            border-radius: 50%;
+        }
+
+        .post-item-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: var(--text-main);
+            /* Truncate long text */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .post-item.active .post-item-title {
+            color: var(--highlight);
+        }
+
+        .post-item-date {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Main Area: Editor / Viewer */
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 1;
+        }
+
+        .main-header {
+            padding: 15px 25px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-panel);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-body);
+        }
+
+        /* Input fields */
+        input[type="text"],
+        textarea {
+            width: 100%;
+            background-color: transparent;
+            color: var(--text-main);
+            border: none;
+            font-family: var(--font-mono);
+            outline: none;
+            resize: none;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus {
+            /* Slight glow when editing */
+            box-shadow: inset 2px 0 0 var(--success);
+            padding-left: 10px;
+            transition: all 0.2s;
+        }
+
+        .editor-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .editor-body {
+            flex: 1;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            background-color: var(--bg-body);
+            border-radius: 0 0 6px 6px;
+        }
+
+        .empty-state i {
+            display: block;
+            margin-bottom: 20px;
+            font-size: 60px;
+            color: var(--border);
+            font-style: normal;
+        }
+
+        /* Command Line (Bottom) */
+        .cmd-line {
+            background-color: var(--bg-panel);
+            padding: 10px 20px;
+            border-top: 2px solid var(--border);
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            color: var(--highlight);
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        .cmd-input {
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            flex: 1;
+            outline: none;
+            margin-left: 10px;
+            font-size: 16px;
+        }
+
+        /* Utility classes */
+        .hidden {
+            display: none !important;
+        }
+
+        .actions-group {
+            display: flex;
+            gap: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="logo">~/github-blog/vim</div>
+        <div id="vim-mode-indicator" class="vim-mode normal">NORMAL</div>
+    </header>
+
+    <div class="container">
+        <!-- Sidebar: Post List -->
+        <aside class="panel sidebar">
+            <div class="sidebar-header">
+                <span><span style="color:var(--highlight);">#</span> POSTS</span>
+                <button class="btn btn-primary" onclick="createNewPost()">+ New</button>
+            </div>
+            <div class="post-list-container">
+                <ul class="post-list" id="post-list">
+                    <!-- Dynamic empty list -->
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main Area: Content View/Edit -->
+        <main class="panel main-area">
+            <!-- Empty State for no selection -->
+            <div id="empty-state" class="empty-state">
+                <div>
+                    <i>~</i>
+                    <h2>No Buffer Open</h2>
+                    <p style="margin-top: 10px;">Select a post from the sidebar, or create a new one.</p>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div id="editor-container" class="hidden" style="display:flex; flex-direction:column; height: 100%;">
+                <div class="main-header">
+                    <div id="editor-status" style="color: var(--text-muted); font-weight: bold;">-- VIEW --</div>
+                    <div class="actions-group">
+                        <button class="btn" id="btn-edit" onclick="toggleEditMode()">Edit [ i ]</button>
+                        <button class="btn btn-danger" onclick="deleteCurrentPost()">Delete</button>
+                        <button class="btn btn-primary hidden" id="btn-save" onclick="savePost()">Save [ :w ]</button>
+                        <button class="btn hidden" id="btn-cancel" onclick="cancelEdit()">Cancel [ esc ]</button>
+                    </div>
+                </div>
+                <div class="main-content">
+                    <input type="text" id="post-title" class="editor-title" placeholder="# Post Title..." readonly>
+                    <textarea id="post-body" class="editor-body" placeholder="Write markdown or raw text here..."
+                        readonly></textarea>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Vim style command line -->
+    <div class="cmd-line">
+        <span>:</span>
+        <input type="text" id="cmd-input" class="cmd-input"
+            placeholder="type a command (e.g., w, q, wq, new) and press enter">
+    </div>
+
+    <script>
+        // State
+        // Data persists via localStorage to ensure no fake content and functional blog management
+        let posts = JSON.parse(localStorage.getItem('posts') || '[]');
+        let currentPostId = null;
+        let isEditing = false;
+
+        // Elements
+        const elPostList = document.getElementById('post-list');
+        const elEmptyState = document.getElementById('empty-state');
+        const elEditorContainer = document.getElementById('editor-container');
+        const elPostTitle = document.getElementById('post-title');
+        const elPostBody = document.getElementById('post-body');
+
+        const btnEdit = document.getElementById('btn-edit');
+        const btnSave = document.getElementById('btn-save');
+        const btnCancel = document.getElementById('btn-cancel');
+        const vimModeIndicator = document.getElementById('vim-mode-indicator');
+        const editorStatus = document.getElementById('editor-status');
+        const cmdInput = document.getElementById('cmd-input');
+
+        // Initialize application
+        function init() {
+            renderList();
+            setupKeyboardEvents();
+        }
+
+        // Render the left sidebar list
+        function renderList() {
+            elPostList.innerHTML = '';
+
+            if (posts.length === 0) {
+                elPostList.innerHTML = '<li style="text-align:center; color: var(--text-muted); padding: 20px 0; font-style: italic;">(List is empty)</li>';
+                return;
+            }
+
+            // Sort by descending update time
+            posts.sort((a, b) => b.updatedAt - a.updatedAt).forEach(post => {
+                const li = document.createElement('li');
+                li.className = 'post-item' + (post.id === currentPostId ? ' active' : '');
+                li.onclick = () => selectPost(post.id);
+
+                const title = document.createElement('div');
+                title.className = 'post-item-title';
+                title.textContent = post.title || 'Untitled';
+
+                const date = document.createElement('div');
+                date.className = 'post-item-date';
+
+                // Format relative time or full date
+                const updatedObj = new Date(post.updatedAt);
+                date.innerHTML = `<span style="color: var(--border);">@</span> ${updatedObj.toLocaleDateString()} ${updatedObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+                li.appendChild(title);
+                li.appendChild(date);
+                elPostList.appendChild(li);
+            });
+        }
+
+        // Read / Select Post
+        function selectPost(id) {
+            if (isEditing) {
+                if (!confirm("E37: No write since last change. Discard changes?")) return;
+            }
+
+            currentPostId = id;
+            const post = posts.find(p => p.id === id);
+
+            if (post) {
+                elEmptyState.classList.add('hidden');
+                elEditorContainer.classList.remove('hidden');
+
+                elPostTitle.value = post.title;
+                elPostBody.value = post.content;
+
+                setMode('read');
+            } else {
+                currentPostId = null;
+                elEmptyState.classList.remove('hidden');
+                elEditorContainer.classList.add('hidden');
+            }
+
+            renderList();
+        }
+
+        // Create
+        function createNewPost() {
+            if (isEditing) {
+                if (!confirm("E37: No write since last change. Discard changes?")) return;
+            }
+
+            const newPost = {
+                id: Date.now().toString(),
+                title: '',
+                content: '',
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+
+            posts.push(newPost);
+            currentPostId = newPost.id;
+            saveToLocal();
+
+            selectPost(newPost.id);
+            toggleEditMode();
+
+            // Focus title input
+            setTimeout(() => elPostTitle.focus(), 50);
+        }
+
+        // Delete
+        function deleteCurrentPost(skipConfirm = false) {
+            if (!currentPostId) return;
+
+            if (!skipConfirm && !confirm("Delete this buffer?")) return;
+
+            posts = posts.filter(p => p.id !== currentPostId);
+            saveToLocal();
+
+            currentPostId = null;
+            elEmptyState.classList.remove('hidden');
+            elEditorContainer.classList.add('hidden');
+            setMode('normal');
+            renderList();
+        }
+
+        // Modify / Save
+        function savePost() {
+            if (!currentPostId) return;
+
+            const title = elPostTitle.value.trim() || 'Untitled';
+            const content = elPostBody.value;
+
+            const postIndex = posts.findIndex(p => p.id === currentPostId);
+            if (postIndex !== -1) {
+                posts[postIndex].title = title;
+                posts[postIndex].content = content;
+                posts[postIndex].updatedAt = Date.now();
+                saveToLocal();
+
+                showCmdMessage(`"${title}" written`);
+                setMode('read');
+                renderList();
+            }
+        }
+
+        // Cancel Modification
+        function cancelEdit() {
+            // Restore from storage
+            const post = posts.find(p => p.id === currentPostId);
+            if (post) {
+                elPostTitle.value = post.title;
+                elPostBody.value = post.content;
+            }
+            showCmdMessage(`Discarded changes`);
+            setMode('read');
+        }
+
+        // Persist to browser LocalStorage
+        function saveToLocal() {
+            localStorage.setItem('posts', JSON.stringify(posts));
+        }
+
+        // Mode Toggles
+        function toggleEditMode() {
+            setMode('edit');
+            elPostBody.focus();
+        }
+
+        function setMode(mode) {
+            if (mode === 'edit') {
+                isEditing = true;
+                elPostTitle.removeAttribute('readonly');
+                elPostBody.removeAttribute('readonly');
+
+                btnEdit.classList.add('hidden');
+                btnSave.classList.remove('hidden');
+                btnCancel.classList.remove('hidden');
+
+                vimModeIndicator.textContent = 'INSERT';
+                vimModeIndicator.className = 'vim-mode insert';
+                editorStatus.textContent = '-- INSERT --';
+                editorStatus.style.color = 'var(--success)';
+            } else if (mode === 'read') {
+                isEditing = false;
+                elPostTitle.setAttribute('readonly', true);
+                elPostBody.setAttribute('readonly', true);
+
+                btnEdit.classList.remove('hidden');
+                btnSave.classList.add('hidden');
+                btnCancel.classList.add('hidden');
+
+                vimModeIndicator.textContent = 'NORMAL';
+                vimModeIndicator.className = 'vim-mode normal';
+                editorStatus.textContent = '-- VIEW --';
+                editorStatus.style.color = 'var(--text-muted)';
+            } else {
+                isEditing = false;
+                vimModeIndicator.textContent = 'NORMAL';
+                vimModeIndicator.className = 'vim-mode normal';
+                editorStatus.textContent = '-- NORMAL --';
+                editorStatus.style.color = 'var(--text-muted)';
+            }
+        }
+
+        // Keyboard & Vim Command mappings
+        function setupKeyboardEvents() {
+            // Command line execute
+            cmdInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const cmd = cmdInput.value.trim();
+                    cmdInput.value = '';
+                    executeCmd(cmd);
+                }
+            });
+
+            // Global keybinds
+            document.addEventListener('keydown', (e) => {
+                const isInputActive = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
+
+                // Escape key
+                if (e.key === 'Escape') {
+                    if (isEditing) {
+                        e.preventDefault();
+                        if (document.activeElement === elPostTitle || document.activeElement === elPostBody) {
+                            // Leave inputs but still in edit mode, sort of pseudo-normal
+                            document.activeElement.blur();
+                        } else {
+                            // Actually cancel out
+                            cancelEdit();
+                        }
+                    } else if (isInputActive && document.activeElement === cmdInput) {
+                        cmdInput.blur();
+                        cmdInput.value = '';
+                    }
+                }
+
+                // If we are NOT focused on an input/textarea, simulate Vim normal mode
+                if (!isInputActive) {
+                    if (e.key === ':') {
+                        // Enter command mode
+                        e.preventDefault();
+                        cmdInput.focus();
+                    } else if (e.key === 'i' && currentPostId) {
+                        // Insert mode
+                        e.preventDefault();
+                        toggleEditMode();
+                    } else if (e.key === 'j') {
+                        // Next post (scroll list down visually)
+                        document.querySelector('.post-list-container').scrollBy({ top: 40, behavior: 'smooth' });
+                    } else if (e.key === 'k') {
+                        // Prev post
+                        document.querySelector('.post-list-container').scrollBy({ top: -40, behavior: 'smooth' });
+                    }
+                }
+            });
+        }
+
+        // Execute :command
+        function executeCmd(cmd) {
+            cmd = cmd.toLowerCase();
+            switch (cmd) {
+                case 'w':
+                    if (isEditing) savePost();
+                    else showCmdMessage(`No changes to save`);
+                    break;
+                case 'q':
+                    if (isEditing) showCmdMessage(`E37: No write since last change (add ! to override)`);
+                    else showCmdMessage(`Already in view mode`);
+                    break;
+                case 'q!':
+                    if (isEditing) cancelEdit();
+                    break;
+                case 'wq':
+                    if (isEditing) savePost();
+                    break;
+                case 'new':
+                    createNewPost();
+                    break;
+                case 'd':
+                    if (currentPostId) deleteCurrentPost(true);
+                    else showCmdMessage(`No buffer to delete`);
+                    break;
+                default:
+                    showCmdMessage(`E492: Not an editor command: ${cmd}`, true);
+            }
+        }
+
+        function showCmdMessage(msg, isError = false) {
+            cmdInput.placeholder = msg;
+            cmdInput.style.color = isError ? 'var(--danger)' : 'var(--success)';
+            setTimeout(() => {
+                cmdInput.placeholder = "type a command (e.g., w, q, wq, new) and press enter";
+                cmdInput.style.color = "var(--text-main)";
+            }, 3000);
+        }
+
+        // Bootstrap on load
+        init();
+
+    </script>
+</body>
+
+</html>
